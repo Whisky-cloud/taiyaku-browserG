@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Classic Reader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h2>Classic Reader</h2>
+<div id="output"></div>
+<div id="log"></div>
+
+<div id="controls">
+  <!-- 上段：検索キーワード -->
+  <div class="control-row">
+    <input id="keywordInput" type="text" placeholder="検索キーワード">
+    <button onclick="searchKeyword()">検索</button>
+  </div>
+
+  <!-- 下段：URL翻訳 -->
+  <div class="control-row">
+    <input id="urlInput" type="text" placeholder="URLを入力">
+    <button onclick="startTranslation()">翻訳開始</button>
+    <button onclick="translateNext()">続き翻訳</button>
+  </div>
+</div>
+
+<script>
+let url = "";
+let lastIndex = 0;
+let es = null;
+
+function log(msg) {
+  console.log(msg);
+  document.getElementById("log").innerText = msg;
+}
+
+function startTranslation() {
+  url = document.getElementById("urlInput").value;
+  lastIndex = 0;
+  document.getElementById("output").innerHTML = "";
+  translateNext();
+}
+
+function translateNext() {
+  if (!url) return;
+  if (es) es.close();
+
+  log("Starting batch translation...");
+  es = new EventSource(`/api/translate-stream?url=${encodeURIComponent(url)}&start=${lastIndex}`);
+
+  es.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      const outputDiv = document.getElementById("output");
+      outputDiv.innerHTML += data.original + "\n";
+      outputDiv.innerHTML += `<div class="translation">${data.text}</div>\n\n`;
+      lastIndex = data.index + 3;
+      log(`Translated batch starting at index ${data.index}`);
+    } catch(err) {
+      log("Error parsing message: " + err.message);
+    }
+  };
+
+  es.addEventListener("done", () => { log("All batches done"); es.close(); es = null; });
+  es.addEventListener("error", () => { log("EventSource error"); es.close(); es = null; });
+}
+
+// 検索ボタン機能
+function searchKeyword() {
+  const keyword = document.getElementById("keywordInput").value;
+  if (!keyword) return;
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(keyword)}`, "_blank");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+:root {
+  --ink: #3b2f2f;
+  --ink-soft: #4a3a28;
+  --panel: rgba(255,255,255,0.7);
+  --accent: rgba(100,60,30,0.4);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: #fdf5e6;
+  background-image: url('parchment.jpg');
+  background-size: 1024px 1024px;
+  background-repeat: repeat;
+  font-family: Georgia, serif;
+  color: var(--ink);
+  line-height: 1.75;
+  font-size: 18px;
+}
+
+h2 { margin-top: 0; }
+
+#output { margin-top: 20px; font-size: 36px; line-height: 1.5; white-space: pre-wrap; }
+.translation { font-size: 28px; color: #333; }
+
+#controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fdf6e3;
+  padding: 10px;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+.control-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* 上段：検索ボックスとボタンを右詰めに */
+#controls .control-row:first-child {
+  justify-content: flex-end;
+}
+
+/* 上段：検索ボックス*/
+#keywordInput {
+  flex: 0 0 50%;
+  padding: 16px;
+  font-size: 32px;
+  border-radius: 8px;
+  border: 1px solid #b59b7b;
+  background: var(--panel);
+}
+
+/* 上段の検索ボタン */
+#controls .control-row:first-child button {
+  padding: 16px 24px;
+  font-size: 32px;
+  border-radius: 8px;
+  border: 1px solid #b59b7b;
+  background: #f3e6cf;
+  cursor: pointer;
+}
+
+/* 下段：右詰めで元の大きさ */
+#controls .control-row:last-child {
+  justify-content: flex-end;
+}
+
+/* 下段：url */
+#urlInput {
+  flex: 0 0 50%;
+  padding: 8px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #b59b7b;
+  background: var(--panel);
+}
+
+/* 下段のボタンも元のまま */
+#controls .control-row:last-child button {
+  padding: 8px 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #b59b7b;
+  background: #f3e6cf;
+  cursor: pointer;
+}
+
+#log {
+  margin-top: 10px;
+  font-size: 12px;
+  color: red;
+}
