@@ -73,7 +73,7 @@ app.get("/api/translate-stream", async (req, res) => {
     }
 
     const batchSize = 3;
-    const maxBatchSentences = 100;
+    const maxBatchSentences = 30;
     const end = Math.min(sentences.length, start + maxBatchSentences);
 
     for (let i = start; i < end; i += batchSize) {
