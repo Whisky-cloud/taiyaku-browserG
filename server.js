@@ -2,10 +2,10 @@
 const express = require("express");
 const cheerio = require("cheerio");
 const axios = require("axios");
-const deepl = require("deepl-node");
 
-// 環境変数からDeepL APIキーを取得
-const translator = new deepl.Translator(process.env.DEEPL_API_KEY);
+// Google Cloud Translate
+const { TranslationServiceClient } = require("@google-cloud/translate").v3;
+const translationClient = new TranslationServiceClient();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,7 +13,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json({ limit: "20mb" }));
 app.use(express.static("public"));
 
-// 文を分割する関数（略語対応）
+// 文分割関数（そのまま）
 function splitSentences(text) {
   const abbrevs = ["Mr","Mrs","Ms","Dr","St","Prof","etc","i.e","e.g","vs"];
   const regex = new RegExp(
@@ -21,7 +21,6 @@ function splitSentences(text) {
     "([.!?])\\s+(?=[A-Z])",
     "g"
   );
-
   let sentences = [];
   let start = 0;
   text.replace(regex, (match, punct, offset) => {
@@ -33,10 +32,8 @@ function splitSentences(text) {
   return sentences.filter(s => s.length > 0);
 }
 
-// ページごとの文キャッシュ
 const pageCache = {};
 
-// EventSource でストリーム翻訳
 app.get("/api/translate-stream", async (req, res) => {
   const url = req.query.url;
   const start = parseInt(req.query.start || "0", 10);
@@ -76,10 +73,17 @@ app.get("/api/translate-stream", async (req, res) => {
     for (let i = start; i < end; i += batchSize) {
       const batch = sentences.slice(i, i + batchSize).join(" ");
       let jaBatch;
+
       try {
-        // DeepL APIで翻訳
-        const result = await translator.translateText(batch, null, "ja");
-        jaBatch = result.text;
+        // Google Translation API呼び出し
+        const [response] = await translationClient.translateText({
+          parent: `projects/${process.env.GOOGLE_PROJECT_ID}/locations/global`,
+          contents: [batch],
+          mimeType: "text/plain",
+          sourceLanguageCode: "en",
+          targetLanguageCode: "ja",
+        });
+        jaBatch = response.translations[0].translatedText;
       } catch (err) {
         console.error("Translation error:", err);
         jaBatch = "(翻訳失敗)";
