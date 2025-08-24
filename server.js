@@ -1,13 +1,12 @@
 // server.js
 const express = require("express");
+const path = require("path");
 const cheerio = require("cheerio");
 const axios = require("axios");
+const { Translate } = require("@google-cloud/translate").v2;
 
-// Google Cloud Translation API v2 クライアント
-const {Translate} = require("@google-cloud/translate").v2;
+// Render 環境変数から取得
 const projectId = process.env.GOOGLE_PROJECT_ID;
-
-// Render 環境変数に JSON を丸ごと入れている前提
 const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
 const translator = new Translate({ projectId, credentials });
 
@@ -15,9 +14,14 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "20mb" }));
-app.use(express.static("public"));
+app.use(express.static("public")); // CSS, JS, 画像用
 
-// 文を分割する関数
+// ルートアクセスで index.html を返す
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// 文を分割する関数（略語対応）
 function splitSentences(text) {
   const abbrevs = ["Mr","Mrs","Ms","Dr","St","Prof","etc","i.e","e.g","vs"];
   const regex = new RegExp(
@@ -25,6 +29,7 @@ function splitSentences(text) {
     "([.!?])\\s+(?=[A-Z])",
     "g"
   );
+
   let sentences = [];
   let start = 0;
   text.replace(regex, (match, punct, offset) => {
@@ -36,10 +41,10 @@ function splitSentences(text) {
   return sentences.filter(s => s.length > 0);
 }
 
-// ページごとのキャッシュ
+// ページキャッシュ
 const pageCache = {};
 
-// ストリーム翻訳API
+// EventSource でストリーム翻訳
 app.get("/api/translate-stream", async (req, res) => {
   const url = req.query.url;
   const start = parseInt(req.query.start || "0", 10);
@@ -80,7 +85,6 @@ app.get("/api/translate-stream", async (req, res) => {
       const batch = sentences.slice(i, i + batchSize).join(" ");
       let jaBatch;
       try {
-        // Google Cloud Translation APIで翻訳
         const [translation] = await translator.translate(batch, "ja");
         jaBatch = translation;
       } catch (err) {
