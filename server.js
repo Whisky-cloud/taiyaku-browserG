@@ -2,18 +2,26 @@
 const express = require("express");
 const cheerio = require("cheerio");
 const axios = require("axios");
-
-// Google Cloud Translate
 const { TranslationServiceClient } = require("@google-cloud/translate").v3;
-const translationClient = new TranslationServiceClient();
 
+// ---- Google Cloud Translation 初期化 ----
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+const projectId = process.env.GOOGLE_PROJECT_ID;
+const location = "global";
+
+const translationClient = new TranslationServiceClient({
+  projectId,
+  credentials,
+});
+
+// ---- Express 初期設定 ----
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: "20mb" }));
 app.use(express.static("public"));
 
-// 文分割関数（そのまま）
+// ---- 文を分割する関数（略語対応）----
 function splitSentences(text) {
   const abbrevs = ["Mr","Mrs","Ms","Dr","St","Prof","etc","i.e","e.g","vs"];
   const regex = new RegExp(
@@ -21,6 +29,7 @@ function splitSentences(text) {
     "([.!?])\\s+(?=[A-Z])",
     "g"
   );
+
   let sentences = [];
   let start = 0;
   text.replace(regex, (match, punct, offset) => {
@@ -32,8 +41,23 @@ function splitSentences(text) {
   return sentences.filter(s => s.length > 0);
 }
 
+// ---- ページごとの文キャッシュ ----
 const pageCache = {};
 
+// ---- Google Cloud Translation を使った翻訳関数 ----
+async function translateText(text, targetLang = "ja") {
+  const request = {
+    parent: `projects/${projectId}/locations/${location}`,
+    contents: [text],
+    mimeType: "text/plain",
+    targetLanguageCode: targetLang,
+  };
+
+  const [response] = await translationClient.translateText(request);
+  return response.translations[0].translatedText;
+}
+
+// ---- EventSource でストリーム翻訳 ----
 app.get("/api/translate-stream", async (req, res) => {
   const url = req.query.url;
   const start = parseInt(req.query.start || "0", 10);
@@ -73,17 +97,8 @@ app.get("/api/translate-stream", async (req, res) => {
     for (let i = start; i < end; i += batchSize) {
       const batch = sentences.slice(i, i + batchSize).join(" ");
       let jaBatch;
-
       try {
-        // Google Translation API呼び出し
-        const [response] = await translationClient.translateText({
-          parent: `projects/${process.env.GOOGLE_PROJECT_ID}/locations/global`,
-          contents: [batch],
-          mimeType: "text/plain",
-          sourceLanguageCode: "en",
-          targetLanguageCode: "ja",
-        });
-        jaBatch = response.translations[0].translatedText;
+        jaBatch = await translateText(batch, "ja");
       } catch (err) {
         console.error("Translation error:", err);
         jaBatch = "(翻訳失敗)";
